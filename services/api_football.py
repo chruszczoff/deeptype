@@ -1,14 +1,15 @@
-import requests
-from app import app, db
+from extensions import db
 from models.match import Match
 from datetime import datetime
+import requests
 from time import sleep
+from flask import current_app
 
 class APIFootballService:
     def __init__(self):
-        self.base_url = app.config['API_FOOTBALL_URL']
+        self.base_url = current_app.config['API_FOOTBALL_URL']
         self.headers = {
-            'x-rapidapi-key': app.config['API_FOOTBALL_KEY'],
+            'x-rapidapi-key': current_app.config['API_FOOTBALL_KEY'],
             'x-rapidapi-host': 'v3.football.api-sports.io'
         }
 
@@ -27,11 +28,11 @@ class APIFootballService:
                 updated_count += self._process_fixture(fixture)
                 sleep(0.1)  # Ochrona przed rate limiting
 
-            app.logger.info(f"Zaktualizowano {updated_count} meczów")
+            current_app.logger.info(f"Zaktualizowano {updated_count} meczów")
             return True
 
         except Exception as e:
-            app.logger.error(f"Błąd podczas aktualizacji meczów: {str(e)}")
+            current_app.logger.error(f"Błąd podczas aktualizacji meczów: {str(e)}")
             return False
 
     def _process_fixture(self, fixture):
@@ -61,6 +62,6 @@ class APIFootballService:
             return 1
         
         except Exception as e:
-            app.logger.error(f"Błąd przetwarzania meczu {fixture_data.get('id')}: {str(e)}")
+            current_app.logger.error(f"Błąd przetwarzania meczu {fixture_data.get('id')}: {str(e)}")
             db.session.rollback()
             return 0
