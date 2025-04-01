@@ -1,7 +1,8 @@
 import requests
-from app import app
+from app import app, db
 from models.match import Match
 from datetime import datetime
+from time import sleep
 
 class APIFootballService:
     def __init__(self):
@@ -11,41 +12,55 @@ class APIFootballService:
             'x-rapidapi-host': 'v3.football.api-sports.io'
         }
 
-    def get_fixtures(self, league_id, season):
-        url = f"{self.base_url}/fixtures"
-        params = {
-            'league': league_id,
-            'season': season
-        }
-        response = requests.get(url, headers=self.headers, params=params)
-        return response.json()
-
-    def update_matches(self, league_id, season):
-        data = self.get_fixtures(league_id, season)
-        fixtures = data.get('response', [])
-        
-        for fixture in fixtures:
-            match_data = fixture['fixture']
-            teams_data = fixture['teams']
-            league_data = fixture['league']
-            score_data = fixture['score']
+    def update_matches(self, league_id=39, season=2023):
+        """Pobiera i aktualizuje mecze z API"""
+        try:
+            url = f"{self.base_url}/fixtures"
+            params = {'league': league_id, 'season': season}
             
-            match = Match.query.filter_by(api_match_id=fixture['fixture']['id']).first()
+            response = requests.get(url, headers=self.headers, params=params)
+            response.raise_for_status()
+            data = response.json()
+
+            updated_count = 0
+            for fixture in data.get('response', []):
+                updated_count += self._process_fixture(fixture)
+                sleep(0.1)  # Ochrona przed rate limiting
+
+            app.logger.info(f"Zaktualizowano {updated_count} meczów")
+            return True
+
+        except Exception as e:
+            app.logger.error(f"Błąd podczas aktualizacji meczów: {str(e)}")
+            return False
+
+    def _process_fixture(self, fixture):
+        """Przetwarza pojedynczy mecz z API"""
+        try:
+            fixture_data = fixture['fixture']
+            teams_data = fixture['teams']
+            score_data = fixture['score']['fulltime']
+            
+            match = Match.query.filter_by(api_match_id=fixture_data['id']).first()
             
             if not match:
-                match = Match(api_match_id=fixture['fixture']['id'])
+                match = Match(api_match_id=fixture_data['id'])
+                db.session.add(match)
             
             match.home_team = teams_data['home']['name']
             match.away_team = teams_data['away']['name']
-            match.league = league_data['name']
-            match.match_date = datetime.strptime(match_data['date'], '%Y-%m-%dT%H:%M:%S%z')
-            match.status = match_data['status']['short']
+            match.league = fixture['league']['name']
+            match.match_date = datetime.strptime(fixture_data['date'], '%Y-%m-%dT%H:%M:%S%z')
+            match.status = fixture_data['status']['short']
             
-            if score_data['fulltime']['home'] is not None:
-                match.home_score = score_data['fulltime']['home']
-                match.away_score = score_data['fulltime']['away']
+            if score_data['home'] is not None:
+                match.home_score = score_data['home']
+                match.away_score = score_data['away']
             
-            db.session.add(match)
+            db.session.commit()
+            return 1
         
-        db.session.commit()
-        return len(fixtures)
+        except Exception as e:
+            app.logger.error(f"Błąd przetwarzania meczu {fixture_data.get('id')}: {str(e)}")
+            db.session.rollback()
+            return 0

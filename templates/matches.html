@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container">
+    <h2>Nadchodzące mecze</h2>
+    
+    <form action="{{ url_for('update_matches') }}" method="POST" class="mb-4">
+        <button type="submit" class="btn btn-primary">
+            Aktualizuj dane meczów
+        </button>
+    </form>
+
+    <div class="matches-list">
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>Data</th>
+                    <th>Liga</th>
+                    <th>Gospodarz</th>
+                    <th>Gość</th>
+                    <th>Wynik</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for match in matches %}
+                <tr>
+                    <td>{{ match.match_date.strftime('%Y-%m-%d %H:%M') }}</td>
+                    <td>{{ match.league }}</td>
+                    <td>{{ match.home_team }}</td>
+                    <td>{{ match.away_team }}</td>
+                    <td>
+                        {% if match.home_score is not none %}
+                        {{ match.home_score }} - {{ match.away_score }}
+                        {% else %}
+                        -
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}
