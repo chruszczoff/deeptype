@@ -5,3 +5,5 @@ flask-login
 python-dotenv
 requests
 psycopg2-binary
+flask-migrate
+gunicorn==20.1.0
