@@ -3,27 +3,24 @@ from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
 import os
 
-# Inicjalizacja rozszerzeń
 db = SQLAlchemy()
 migrate = Migrate()
 
 def create_app():
     app = Flask(__name__)
     
-    # Konfiguracja aplikacji
+    # Konfiguracja
     app.config.from_object('config.Config')
     
-    # Inicjalizacja rozszerzeń z aplikacją
+    # Sprawdzenie czy URI bazy danych jest poprawne
+    if not app.config['SQLALCHEMY_DATABASE_URI']:
+        raise ValueError("Nie skonfigurowano SQLALCHEMY_DATABASE_URI")
+    
+    # Inicjalizacja rozszerzeń
     db.init_app(app)
     migrate.init_app(app, db)
     
-    # Import modeli (musi być po inicjalizacji db)
-    with app.app_context():
-        from models.user import User
-        from models.match import Match
-        from models.prediction import Prediction
-    
-    # Proste trasy testowe
+    # Proste endpointy
     @app.route('/')
     def home():
         return "Aplikacja do typowania wyników piłkarskich działa poprawnie!"
@@ -34,7 +31,6 @@ def create_app():
     
     return app
 
-# Utworzenie aplikacji
 app = create_app()
 
 if __name__ == '__main__':
